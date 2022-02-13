@@ -1,0 +1,140 @@
+learning url:
+https://studygyaan.com/django/django-rest-framework-tutorial-register-login-logout
+================================= end
+steps:
+cmd > virtualenv env
+================================= end
+pip install djangorestframework
+pip install django-rest-knox
+================================= end
+create drf 
+
+django-admin startproject drf .
+
+in drf folder > settings.py > add 
+INSTALLED_APPS = [
+    ...
+    'rest_framework',
+    'knox',
+]
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        # 'rest_framework.authentication.BasicAuthentication',
+        # 'rest_framework.authentication.SessionAuthentication',
+        'knox.auth.TokenAuthentication',
+    ]
+}
+================================= end
+
+create accounts
+cmd > django-admin startapp accounts
+
+in drf folder > settings.py > add 
+INSTALLED_APPS = [
+    ...
+    'accounts',
+]
+================================= end
+in accounts 
+create serializers.py by below codes 
+
+
+from rest_framework import serializers
+from django.contrib.auth.models import User
+
+# User Serializer
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email')
+
+# Register Serializer
+class RegisterSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'email', 'password')
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        user = User.objects.create_user(validated_data['username'], validated_data['email'], validated_data['password'])
+
+        return user
+
+
+================================= end
+
+in accounts 
+create views.py by below codes 
+
+from rest_framework import generics, permissions
+from rest_framework.response import Response
+from knox.models import AuthToken
+from .serializers import UserSerializer, RegisterSerializer
+
+# Register API
+class RegisterAPI(generics.GenericAPIView):
+    serializer_class = RegisterSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response({
+        "user": UserSerializer(user, context=self.get_serializer_context()).data,
+        "token": AuthToken.objects.create(user)[1]
+        })
+
+================================= end
+
+in drf urls.py
+
+from django.urls import path,include
+
+urlpatterns = [
+    ...,
+    path('', include('accounts.urls')),
+]
+
+================================= end
+in accounts
+
+create urls.py
+
+from .views import RegisterAPI
+from django.urls import path
+
+urlpatterns = [
+    path('api/register/', RegisterAPI.as_view(), name='register'),
+]
+
+================================= end
+migrate changes to db
+
+py manage.py makemigrations
+py manage.py migrate
+
+
+
+================================= end
+
+run server :
+
+py ./manage.py runserver
+
+go to
+
+http://localhost:8000/api/register/ 
+
+================================= end
+
+open postman
+
+send req by POST mehtod:
+Content-Type : application/x-www-form-urlencoded
+
+username:admin
+password:admin
+email:admin@bot.co
+
